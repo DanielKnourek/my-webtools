@@ -2,28 +2,63 @@ import type { NextPage } from 'next'
 import { getImageSize } from 'next/dist/server/image-optimizer'
 import Head from 'next/head'
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
+import { DragEventHandler, useEffect, useState } from 'react'
 import apiFetch from '../lib/apiFetch'
 
 type fetchData = {
   data: string;
 }
 
-let fileHandle;
+let fileHandle: any;
+
+const readmeFile = async (fileHandleVar: any) => {
+  const file = await fileHandleVar.getFile();
+  const content = await file.text();
+  console.log(content);
+  return content as string;
+}
+
+function scanFiles(item: FileSystemEntry, level: string) {
+  console.log("Name of item:", level, item.name);
+
+   if (item.isDirectory) {
+      let directoryReader = item.createReader();
+      let directoryContainer = document.createElement("ul");
+      directoryReader.readEntries(function(entries: FileSystemEntry[]) {
+          entries.forEach(function(entry) {
+            scanFiles(entry, `${level}-`);
+        });
+      });
+    }
+}
 
 const Automaton_download: NextPage = () => {
   const site = 'http://37.44.209.11/snap.jpeg';
   const [image, setImage] = useState<string>();
+  const [shiplog, setShipLog] = useState<string>("Here comes a log");
 
   const apiurl = '/api/download-resource';
 
+  const preventDefault: DragEventHandler = (e) => {
+    e.preventDefault();
+  }
+  const onDropHandler: DragEventHandler = (e) => {
+    let items = e.dataTransfer.items;
+
+    e.preventDefault();
+
+    for (let i = 0; i < items.length; i++) {
+      let item = items[i].webkitGetAsEntry();
+
+      if (item) {
+        scanFiles(item, "");
+      }
+    }
+  }
+
   const fileSelector = async () => {
     [fileHandle] = await window.showOpenFilePicker();
-
-    const file = await fileHandle.getFile();
-    const content = await file.text();
-
-    return content;
+    readmeFile(fileHandle);
   };
 
   const getImage = () => {
@@ -80,8 +115,21 @@ const Automaton_download: NextPage = () => {
           <Image src={image} alt="me" width="500px" height="500px" />
         }
       </div>
-
       <button onClick={fileSelector} className='bg-black text-white p-2 rounded-md m-2'>choose file</button>
+      <button onClick={async response => {
+        setShipLog(await readmeFile(fileHandle));
+      }} className='bg-black text-white p-2 rounded-md m-2'>readme a file</button>
+      <br />
+      {shiplog}
+
+      <div className='text-center h-16 m-2 p-2 border-2 border-red-500 border-dashed rounded-md' id="dropzone"
+        onDragOver={preventDefault}
+        onDrop={onDropHandler}
+      >
+        <div id="boxtitle">
+          Drop Files Here
+        </div>
+      </div>
     </div>
   );
 }
